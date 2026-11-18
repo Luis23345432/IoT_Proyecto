@@ -1,0 +1,277 @@
+[
+    {
+        "id": "tab_nodo1",
+        "type": "tab",
+        "label": "Nodo 1",
+        "disabled": false,
+        "info": "Tablero del sistema de seguridad.\nSensores: iot/seguridad/sensores\nComandos: casa/nodo1/cmd"
+    },
+    {
+        "id": "broker1",
+        "type": "mqtt-broker",
+        "name": "HiveMQ público (pruebas)",
+        "broker": "broker.hivemq.com",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "ui_base1",
+        "type": "ui-base",
+        "name": "Seguridad residencial",
+        "path": "/dashboard",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control"
+        ],
+        "showPathInSidebar": false,
+        "showPageTitle": false,
+        "navigationStyle": "none",
+        "titleBarStyle": "hidden"
+    },
+    {
+        "id": "ui_theme1",
+        "type": "ui-theme",
+        "name": "Oscuro",
+        "colors": {
+            "surface": "#0b1220",
+            "primary": "#2563eb",
+            "bgPage": "#0b1220",
+            "groupBg": "#0b1220",
+            "groupOutline": "#0b1220"
+        },
+        "sizes": {
+            "density": "default",
+            "pagePadding": "20px",
+            "groupGap": "0px",
+            "groupBorderRadius": "0px",
+            "widgetGap": "0px"
+        }
+    },
+    {
+        "id": "ui_page1",
+        "type": "ui-page",
+        "name": "Puerta principal",
+        "ui": "ui_base1",
+        "path": "/nodo1",
+        "icon": "shield-home",
+        "layout": "notebook",
+        "theme": "ui_theme1",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "12"
+            }
+        ],
+        "order": 1,
+        "className": "",
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "g_main",
+        "type": "ui-group",
+        "name": "Principal",
+        "page": "ui_page1",
+        "width": "12",
+        "height": "1",
+        "order": 1,
+        "showTitle": false,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "in_sensores",
+        "type": "mqtt in",
+        "z": "tab_nodo1",
+        "name": "iot/seguridad/sensores",
+        "topic": "iot/seguridad/sensores",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "broker1",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 160,
+        "y": 80,
+        "wires": [
+            [
+                "fn_modelo",
+                "dbg_sensores"
+            ]
+        ]
+    },
+    {
+        "id": "in_estado",
+        "type": "mqtt in",
+        "z": "tab_nodo1",
+        "name": "casa/nodo1/estado",
+        "topic": "casa/nodo1/estado",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "broker1",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 150,
+        "y": 140,
+        "wires": [
+            [
+                "fn_modelo"
+            ]
+        ]
+    },
+    {
+        "id": "in_evento",
+        "type": "mqtt in",
+        "z": "tab_nodo1",
+        "name": "casa/nodo1/evento",
+        "topic": "casa/nodo1/evento",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "broker1",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 150,
+        "y": 200,
+        "wires": [
+            [
+                "fn_modelo"
+            ]
+        ]
+    },
+    {
+        "id": "inj_tick",
+        "type": "inject",
+        "z": "tab_nodo1",
+        "name": "cada 2 s",
+        "props": [
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "2",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "1",
+        "topic": "tick",
+        "x": 130,
+        "y": 260,
+        "wires": [
+            [
+                "fn_modelo"
+            ]
+        ]
+    },
+    {
+        "id": "fn_modelo",
+        "type": "function",
+        "z": "tab_nodo1",
+        "name": "modelo del tablero",
+        "func": "// Modelo del tablero: junta todo lo que llega y arma una \"foto\" del sistema\n// que la vista solo tiene que dibujar (así no se pierde nada al recargar).\nconst UMBRAL_VIB = 40;   // mismo valor que ETA en el firmware\nconst MAX_EVENTOS = 40;\nconst MAX_SERIE = 240;   // 60 s a 4 fotos por segundo\nconst MAX_LAT = 40;      // latencias para la mediana\n\nconst ahora = Date.now();\nlet m = flow.get('modelo') || {};\nm = Object.assign({\n    sensores: null, ultimo: 0, online: false, modo: null, salida: 0,\n    sirena: false, cerradura: false, base: null, vib: 0, vibActiva: false, umbral: UMBRAL_VIB,\n    cont: { pir: 0, puerta: 0, vib: 0 }, desde: ahora, eventos: [], serie: [], lats: [], lat: null\n}, m);\n\nfunction evento(tipo, texto) {\n    m.eventos.unshift({ t: ahora, tipo, texto });\n    m.eventos.splice(MAX_EVENTOS);\n}\n\nconst NOMBRE = { desarmado: 'desarmado', saliendo: 'armándose', armado: 'armado', sospecha: 'en sospecha', alarma: 'en alarma' };\nlet cmd = null;\n\nswitch (msg.topic) {\ncase 'iot/seguridad/sensores': {\n    const s = msg.payload;\n    if (!s || typeof s !== 'object') return null;\n    const prev = m.sensores;\n\n    // Vibración: la detecta el nodo a 200 Hz; si no la manda, se estima aquí\n    let vib, d;\n    if (s.vib !== undefined) {\n        vib = !!s.vib;\n        d = s.d || 0;\n    } else {\n        if (!m.base) m.base = { x: s.x, y: s.y, z: s.z };\n        d = Math.sqrt((s.x - m.base.x) ** 2 + (s.y - m.base.y) ** 2 + (s.z - m.base.z) ** 2);\n        vib = d > UMBRAL_VIB;\n        const k = vib ? 0.02 : 0.1;\n        for (const e of ['x', 'y', 'z']) m.base[e] += k * (s[e] - m.base[e]);\n    }\n    if (vib && !m.vibActiva) { m.cont.vib++; evento('vib', 'Golpe o vibración en la puerta'); }\n    m.vibActiva = vib;\n    m.vib = Math.round(d);\n\n    if (prev) {\n        if (s.pir && !prev.pir && !s.pir_calibrando) { m.cont.pir++; evento('pir', 'Movimiento detectado'); }\n        if (s.puerta_abierta !== prev.puerta_abierta) {\n            if (s.puerta_abierta) { m.cont.puerta++; evento('puerta', 'Puerta abierta'); }\n            else evento('puerta-ok', 'Puerta cerrada');\n        }\n        if (s.estado && s.estado !== prev.estado) {\n            if (s.estado === 'alarma') evento('alarma', '¡Alarma! Dos sensores distintos en 10 s');\n            else evento('estado', 'Sistema ' + (NOMBRE[s.estado] || s.estado));\n        }\n        if (s.sirena !== undefined && !!s.sirena !== !!prev.sirena) evento('sirena', s.sirena ? 'Sirena encendida' : 'Sirena apagada');\n        if (s.cerradura !== undefined && !!s.cerradura !== !!prev.cerradura) evento('cerradura', s.cerradura ? 'Cerradura bloqueada' : 'Cerradura liberada');\n    }\n\n    // Latencia extremo a extremo: hora del nodo (NTP) contra hora de llegada\n    if (s.t > 1700000000000) {\n        m.lats.push(ahora - s.t);\n        m.lats.splice(0, Math.max(0, m.lats.length - MAX_LAT));\n        const o = m.lats.slice().sort((a, b) => a - b);\n        m.lat = o[Math.floor(o.length / 2)];\n    }\n\n    if (!m.online) evento('red', 'Nodo conectado');\n    m.online = true;\n    m.sensores = s;\n    m.ultimo = ahora;\n    m.modo = s.estado || m.modo;\n    m.salida = s.salida_s || 0;\n    m.sirena = !!s.sirena;\n    m.cerradura = !!s.cerradura;\n    m.serie.push({ t: ahora, d: m.vib });\n    m.serie.splice(0, Math.max(0, m.serie.length - MAX_SERIE));\n    break;\n}\ncase 'casa/nodo1/evento':\n    if (msg.payload && msg.payload.ack) evento('cmd-ok', 'El nodo confirmó: ' + msg.payload.ack);\n    else return null;\n    break;\ncase 'tick':\n    // Sin lecturas por más de 5 s: el nodo se considera desconectado\n    if (m.online && ahora - m.ultimo > 5000) {\n        m.online = false;\n        evento('red-off', 'Sin datos del nodo');\n        break;\n    }\n    flow.set('modelo', m);\n    return null;\ncase 'ui/cmd':\n    cmd = { topic: 'casa/nodo1/cmd', payload: msg.payload };\n    evento('cmd', 'Comando enviado: ' + msg.payload);\n    break;\ncase 'ui/reset':\n    m.cont = { pir: 0, puerta: 0, vib: 0 };\n    m.desde = ahora;\n    m.eventos = [];\n    m.base = null;\n    m.lats = [];\n    m.lat = null;\n    break;\ndefault:\n    return null;\n}\n\nflow.set('modelo', m);\nconst foto = Object.assign({}, m, { ahora });\ndelete foto.lats;\ndelete foto.base;\nreturn [{ payload: foto }, cmd];\n",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "outputLabels": [
+            "foto para la vista",
+            "comando MQTT"
+        ],
+        "x": 420,
+        "y": 170,
+        "wires": [
+            [
+                "ui_vista"
+            ],
+            [
+                "out_cmd"
+            ]
+        ]
+    },
+    {
+        "id": "ui_vista",
+        "type": "ui-template",
+        "z": "tab_nodo1",
+        "group": "g_main",
+        "page": "",
+        "ui": "",
+        "name": "Vista principal",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "head": "",
+        "format": "<template>\n  <div class=\"sx\">\n    <header class=\"sx-top\">\n      <div>\n        <div class=\"sx-eyebrow\">Sistema de seguridad residencial · Nodo 1</div>\n        <h1 class=\"sx-title\">Puerta principal</h1>\n      </div>\n      <div class=\"sx-chips\">\n        <span v-if=\"online && m.lat != null\" class=\"sx-chip\" title=\"Desde que el ESP32 mide hasta que llega aquí\"><v-icon size=\"16\">mdi-timer-outline</v-icon>{{ m.lat }} ms</span>\n        <span v-if=\"pirCal\" class=\"sx-chip sx-c-info\"><v-icon size=\"16\">mdi-timer-sand</v-icon>PIR calentando</span>\n        <span class=\"sx-chip\" :class=\"online ? 'sx-c-ok' : 'sx-c-off'\">\n          <span class=\"sx-dot\"></span>{{ online ? 'En línea' : 'Sin conexión' }}<span class=\"sx-muted\">· {{ visto }}</span>\n        </span>\n      </div>\n    </header>\n\n    <section class=\"sx-hero\" :class=\"'sx-h-' + nivel\">\n      <div class=\"sx-hero-icon\"><v-icon size=\"40\">{{ heroIcon }}</v-icon></div>\n      <div class=\"sx-hero-text\">\n        <div class=\"sx-hero-title\">{{ heroTitulo }}</div>\n        <div class=\"sx-hero-sub\">{{ heroSub }}</div>\n      </div>\n      <div class=\"sx-actions\">\n        <div class=\"sx-mode\">Modo del sistema: <b>{{ modoTexto }}</b></div>\n        <div class=\"sx-btns\">\n          <button class=\"sx-btn sx-b-arm\" :disabled=\"!online || (m.modo && m.modo !== 'desarmado')\" @click=\"cmd('armar')\"><v-icon size=\"18\">mdi-shield-lock</v-icon>Armar</button>\n          <button class=\"sx-btn sx-b-dis\" :disabled=\"!online\" @click=\"cmd('desarmar')\"><v-icon size=\"18\">mdi-shield-off-outline</v-icon>Desarmar</button>\n          <button class=\"sx-btn sx-b-sil\" :disabled=\"!online || !m.sirena\" @click=\"cmd('silenciar')\"><v-icon size=\"18\">mdi-volume-off</v-icon>Silenciar</button>\n        </div>\n      </div>\n    </section>\n\n    <section class=\"sx-grid\">\n      <div v-for=\"c in tarjetas\" :key=\"c.id\" class=\"sx-card sx-sensor\" :class=\"'sx-s-' + c.nivel\">\n        <div class=\"sx-card-head\">\n          <div class=\"sx-ico\"><v-icon size=\"24\">{{ c.icono }}</v-icon></div>\n          <div>\n            <div class=\"sx-card-title\">{{ c.titulo }}</div>\n            <div class=\"sx-card-sub\">{{ c.sensor }}</div>\n          </div>\n        </div>\n        <div class=\"sx-state\"><span class=\"sx-sdot\"></span>{{ c.estado }}</div>\n        <div v-if=\"c.barra !== undefined\" class=\"sx-bar\" title=\"La marca es el umbral\">\n          <div class=\"sx-bar-fill\" :style=\"{ width: c.barra + '%' }\"></div>\n          <div class=\"sx-bar-mark\"></div>\n        </div>\n        <div class=\"sx-card-foot\">{{ c.pie }}</div>\n      </div>\n    </section>\n\n    <section class=\"sx-grid sx-act\">\n      <div v-for=\"a in actuadores\" :key=\"a.id\" class=\"sx-card sx-sensor\" :class=\"'sx-s-' + a.nivel\">\n        <div class=\"sx-card-head\">\n          <div class=\"sx-ico\"><v-icon size=\"24\">{{ a.icono }}</v-icon></div>\n          <div class=\"sx-grow\">\n            <div class=\"sx-card-title\">{{ a.titulo }}</div>\n            <div class=\"sx-card-sub\">{{ a.sensor }}</div>\n          </div>\n          <button class=\"sx-tgl\" :class=\"{ on: a.on }\" :disabled=\"!online\" @click=\"cmd(a.on ? a.off : a.onCmd)\">\n            <v-icon size=\"18\">{{ a.on ? a.iconoOff : a.iconoOn }}</v-icon>{{ a.on ? a.txtOff : a.txtOn }}\n          </button>\n        </div>\n        <div class=\"sx-state\"><span class=\"sx-sdot\"></span>{{ a.estado }}</div>\n        <div class=\"sx-card-foot\">{{ a.pie }}</div>\n      </div>\n    </section>\n\n    <section class=\"sx-grid2\">\n      <div class=\"sx-card\">\n        <div class=\"sx-card-row\">\n          <div class=\"sx-card-title\">Acelerómetro · últimos 60 s</div>\n          <div class=\"sx-xyz\"><span>X {{ s.x ?? '–' }}</span><span>Y {{ s.y ?? '–' }}</span><span>Z {{ s.z ?? '–' }}</span></div>\n        </div>\n        <svg class=\"sx-chart\" viewBox=\"0 0 600 160\" preserveAspectRatio=\"none\">\n          <line x1=\"0\" :y1=\"yUmbral\" x2=\"600\" :y2=\"yUmbral\" class=\"sx-thr\" />\n          <polygon v-if=\"puntos\" :points=\"area\" class=\"sx-area\" />\n          <polyline v-if=\"puntos\" :points=\"puntos\" class=\"sx-line\" />\n        </svg>\n        <div class=\"sx-legend\">\n          <span class=\"sx-lg\"><i class=\"sx-lg-line\"></i>Desviación respecto del reposo</span>\n          <span class=\"sx-lg\"><i class=\"sx-lg-thr\"></i>Umbral ({{ umbral }})</span>\n        </div>\n      </div>\n\n      <div class=\"sx-card\">\n        <div class=\"sx-card-row\">\n          <div class=\"sx-card-title\">Actividad reciente</div>\n          <button class=\"sx-link\" @click=\"reset\"><v-icon size=\"16\">mdi-restart</v-icon>Reiniciar</button>\n        </div>\n        <div v-if=\"!eventos.length\" class=\"sx-empty\">Sin eventos todavía</div>\n        <ul class=\"sx-feed\">\n          <li v-for=\"(e, i) in eventos\" :key=\"e.t + '-' + i\">\n            <span class=\"sx-fico\" :class=\"'sx-e-' + e.tipo\"><v-icon size=\"16\">{{ iconoEvento(e.tipo) }}</v-icon></span>\n            <span class=\"sx-ftext\">{{ e.texto }}</span>\n            <span class=\"sx-ftime\">{{ hora(e.t) }}</span>\n          </li>\n        </ul>\n        <div class=\"sx-foot\">Contadores desde las {{ hora(m.desde) }}</div>\n      </div>\n    </section>\n  </div>\n</template>\n\n<script>\nexport default {\n  data() {\n    return { now: Date.now(), recibido: Date.now(), timer: null }\n  },\n  watch: {\n    msg() { this.recibido = Date.now() }\n  },\n  mounted() {\n    this.timer = setInterval(() => { this.now = Date.now() }, 1000)\n  },\n  unmounted() {\n    clearInterval(this.timer)\n  },\n  computed: {\n    m() { return (this.msg && this.msg.payload) || {} },\n    s() { return this.m.sensores || {} },\n    umbral() { return this.m.umbral || 40 },\n    // Antigüedad del último dato sin mezclar relojes: lo que ya tenía al salir del servidor\n    // más lo que pasó desde que llegó al navegador\n    edad() { return this.m.ultimo ? (this.m.ahora - this.m.ultimo) + (this.now - this.recibido) : Infinity },\n    online() { return this.edad < 5000 },\n    visto() {\n      if (!this.m.ultimo) return 'sin datos'\n      const d = Math.max(0, Math.round(this.edad / 1000))\n      return d <= 1 ? 'ahora' : 'hace ' + this.dur(d)\n    },\n    pirCal() { return this.online && this.s.pir_calibrando },\n    modo() { return this.m.modo || '' },\n    activos() {\n      const a = []\n      if (this.s.pir && !this.s.pir_calibrando) a.push('movimiento en el ambiente')\n      if (this.s.puerta_abierta) a.push('puerta abierta')\n      if (this.m.vibActiva) a.push('movimiento en la puerta')\n      return a\n    },\n    nivel() {\n      if (!this.online) return 'off'\n      if (this.modo === 'alarma' || this.m.sirena) return 'alert'\n      if (this.modo === 'sospecha' || this.activos.length) return 'warn'\n      if (this.modo === 'saliendo') return 'info'\n      return 'ok'\n    },\n    heroIcon() {\n      if (this.nivel === 'ok' && this.modo === 'desarmado') return 'mdi-shield-off-outline'\n      return { off: 'mdi-lan-disconnect', alert: 'mdi-alarm-light', warn: 'mdi-shield-alert', info: 'mdi-timer-sand', ok: 'mdi-shield-check' }[this.nivel]\n    },\n    heroTitulo() {\n      if (this.nivel === 'off') return 'Sin datos del nodo'\n      if (this.nivel === 'alert') return this.modo === 'alarma' ? '¡Alarma!' : 'Sirena encendida'\n      if (this.modo === 'sospecha') return 'Sospecha de intrusión'\n      if (this.nivel === 'warn') return 'Actividad detectada'\n      if (this.modo === 'saliendo') return 'Armando en ' + (this.m.salida || 0) + ' s'\n      if (this.modo === 'armado') return 'Armado y vigilando'\n      return 'Todo tranquilo'\n    },\n    heroSub() {\n      if (this.nivel === 'off') return 'Revisa que el ESP32 esté encendido y conectado al Wi-Fi.'\n      if (this.modo === 'alarma') return 'Dos sensores distintos se activaron en menos de 10 s. Desarma o silencia.'\n      if (this.nivel === 'alert') return 'Prueba manual: pitido corto de 0.5 s.'\n      if (this.modo === 'sospecha') return 'Un sensor se activó; si otro distinto lo hace en 10 s, suena la alarma.'\n      if (this.nivel === 'warn') return 'Ahora: ' + this.activos.join(', ') + '.'\n      if (this.modo === 'saliendo') return 'Sal y cierra la puerta antes de que termine la cuenta.'\n      if (this.modo === 'armado') return 'Ningún sensor activo. Cualquier evento pasa a sospecha.'\n      return 'Sistema desarmado: los sensores se muestran pero no disparan la alarma.'\n    },\n    modoTexto() {\n      const t = { saliendo: 'armándose', sospecha: 'sospecha' }[this.modo] || this.modo || 'sin confirmar'\n      return t.charAt(0).toUpperCase() + t.slice(1)\n    },\n    tarjetas() {\n      const s = this.s, c = this.m.cont || { pir: 0, puerta: 0, vib: 0 }, on = this.online\n      const plural = (n, a, b) => n + ' ' + (n === 1 ? a : b)\n      return [\n        {\n          id: 'pir', titulo: 'Movimiento', sensor: 'PIR HC-SR501', icono: 'mdi-motion-sensor',\n          estado: !on ? 'Sin datos' : s.pir_calibrando ? 'Calentando…' : s.pir ? 'Detectando' : 'Sin movimiento',\n          nivel: !on ? 'off' : s.pir_calibrando ? 'info' : s.pir ? 'warn' : 'ok',\n          pie: plural(c.pir, 'activación', 'activaciones')\n        },\n        {\n          id: 'puerta', titulo: 'Puerta', sensor: 'Contacto MC-38',\n          icono: s.puerta_abierta ? 'mdi-door-open' : 'mdi-door-closed',\n          estado: !on ? 'Sin datos' : s.puerta_abierta ? 'Abierta' : 'Cerrada',\n          nivel: !on ? 'off' : s.puerta_abierta ? 'alert' : 'ok',\n          pie: plural(c.puerta, 'apertura', 'aperturas')\n        },\n        {\n          id: 'vib', titulo: 'Golpes y vibración', sensor: 'Acelerómetro ADXL335', icono: 'mdi-vibrate',\n          estado: !on ? 'Sin datos' : this.m.vibActiva ? 'En movimiento' : 'En reposo',\n          nivel: !on ? 'off' : this.m.vibActiva ? 'warn' : 'ok',\n          barra: Math.min(100, Math.round((this.m.vib || 0) / this.umbral * 50)),\n          pie: plural(c.vib, 'evento', 'eventos') + ' · desviación ' + (this.m.vib ?? 0)\n        }\n      ]\n    },\n    actuadores() {\n      const on = this.online, m = this.m\n      return [\n        {\n          id: 'sirena', titulo: 'Sirena', sensor: 'GP-04 12 V · relé CH2', icono: 'mdi-bullhorn',\n          on: !!m.sirena, onCmd: 'sirena_on', off: 'sirena_off',\n          txtOn: 'Probar', txtOff: 'Apagar', iconoOn: 'mdi-play', iconoOff: 'mdi-stop',\n          estado: !on ? 'Sin datos' : m.sirena ? 'Sonando' : 'Apagada',\n          nivel: !on ? 'off' : m.sirena ? 'alert' : 'ok',\n          pie: 'La prueba es un pitido de 0.5 s; en alarma suena hasta 60 s.'\n        },\n        {\n          id: 'cerradura', titulo: 'Cerradura', sensor: 'Electroimán 12 V · relé CH1', icono: m.cerradura ? 'mdi-lock' : 'mdi-lock-open-variant',\n          on: !!m.cerradura, onCmd: 'cerradura_on', off: 'cerradura_off',\n          txtOn: 'Bloquear', txtOff: 'Liberar', iconoOn: 'mdi-lock', iconoOff: 'mdi-lock-open-variant',\n          estado: !on ? 'Sin datos' : m.cerradura ? 'Bloqueada' : 'Liberada',\n          nivel: !on ? 'off' : m.cerradura ? 'info' : 'ok',\n          pie: 'Se bloquea sola ante un golpe con el sistema armado.'\n        }\n      ]\n    },\n    eventos() { return this.m.eventos || [] },\n    yMax() {\n      const v = (this.m.serie || []).map(p => p.d)\n      return Math.max(this.umbral * 2, ...v, 1)\n    },\n    yUmbral() { return 156 - this.umbral / this.yMax * 148 },\n    coords() {\n      const sr = this.m.serie || [], n = 240\n      return sr.map((p, i) => [(n - sr.length + i) / (n - 1) * 600, 156 - p.d / this.yMax * 148])\n    },\n    puntos() { return this.coords.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ') },\n    area() {\n      const c = this.coords\n      if (!c.length) return ''\n      return c[0][0].toFixed(1) + ',160 ' + this.puntos + ' ' + c[c.length - 1][0].toFixed(1) + ',160'\n    }\n  },\n  methods: {\n    cmd(c) { this.send({ topic: 'ui/cmd', payload: c }) },\n    reset() { this.send({ topic: 'ui/reset', payload: true }) },\n    hora(t) {\n      return t ? new Date(t).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }) : '–'\n    },\n    dur(sec) {\n      return sec < 60 ? sec + ' s' : sec < 3600 ? Math.floor(sec / 60) + ' min' : Math.floor(sec / 3600) + ' h'\n    },\n    iconoEvento(t) {\n      return {\n        pir: 'mdi-motion-sensor', puerta: 'mdi-door-open', 'puerta-ok': 'mdi-door-closed',\n        vib: 'mdi-vibrate', red: 'mdi-wifi', 'red-off': 'mdi-wifi-off',\n        cmd: 'mdi-send', 'cmd-ok': 'mdi-check-circle',\n        alarma: 'mdi-alarm-light', estado: 'mdi-shield-outline', sirena: 'mdi-bullhorn', cerradura: 'mdi-lock'\n      }[t] || 'mdi-circle-small'\n    }\n  }\n}\n</script>\n\n<style>\n.sx {\n  --bg: #0b1220; --card: #111a2c; --card2: #0f1727; --line: #1e2a42;\n  --text: #e8eef8; --muted: #8a97b0;\n  --ok: #22c55e; --warn: #f59e0b; --alert: #ef4444; --info: #38bdf8; --off: #64748b;\n  color: var(--text);\n  font-family: Inter, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;\n  display: flex; flex-direction: column; gap: 16px;\n  max-width: 1200px; margin: 0 auto; width: 100%; min-width: 0; overflow-x: hidden;\n}\n.sx * { box-sizing: border-box; }\n.sx-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }\n.sx-eyebrow { color: var(--muted); font-size: 13px; letter-spacing: .02em; }\n.sx-title { font-size: 28px; font-weight: 700; margin: 2px 0 0; letter-spacing: -.01em; }\n.sx-chips { display: flex; gap: 8px; flex-wrap: wrap; }\n.sx-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;\n  font-size: 13px; font-weight: 600; background: var(--card); border: 1px solid var(--line); }\n.sx-chip .sx-muted { color: var(--muted); font-weight: 500; }\n.sx-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }\n.sx-c-ok { color: var(--ok); } .sx-c-ok .sx-dot { animation: sx-pulse 2s infinite; }\n.sx-c-off { color: var(--off); } .sx-c-info { color: var(--info); }\n\n.sx-hero { display: flex; align-items: center; gap: 18px; padding: 20px 22px; border-radius: 18px;\n  border: 1px solid var(--line); background: var(--card); flex-wrap: wrap; }\n.sx-h-ok { background: linear-gradient(135deg, rgba(34,197,94,.16), rgba(34,197,94,.03)); border-color: rgba(34,197,94,.35); }\n.sx-h-warn { background: linear-gradient(135deg, rgba(245,158,11,.20), rgba(245,158,11,.04)); border-color: rgba(245,158,11,.45); }\n.sx-h-alert { background: linear-gradient(135deg, rgba(239,68,68,.26), rgba(239,68,68,.05)); border-color: rgba(239,68,68,.6); }\n.sx-h-alert .sx-hero-icon { color: var(--alert); background: rgba(239,68,68,.2); animation: sx-glow-r 1s infinite; }\n.sx-h-info { background: linear-gradient(135deg, rgba(56,189,248,.16), rgba(56,189,248,.03)); border-color: rgba(56,189,248,.4); }\n.sx-h-info .sx-hero-icon { color: var(--info); background: rgba(56,189,248,.15); }\n.sx-h-off { background: linear-gradient(135deg, rgba(100,116,139,.18), rgba(100,116,139,.04)); border-color: rgba(100,116,139,.35); }\n.sx-hero-icon { width: 68px; height: 68px; border-radius: 18px; display: grid; place-items: center; flex: none; }\n.sx-h-ok .sx-hero-icon { color: var(--ok); background: rgba(34,197,94,.15); }\n.sx-h-warn .sx-hero-icon { color: var(--warn); background: rgba(245,158,11,.18); animation: sx-glow 1.4s infinite; }\n.sx-h-off .sx-hero-icon { color: var(--off); background: rgba(100,116,139,.18); }\n.sx-hero-text { flex: 1 1 220px; }\n.sx-hero-title { font-size: 24px; font-weight: 700; }\n.sx-hero-sub { color: var(--muted); margin-top: 2px; }\n.sx-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }\n.sx-mode { font-size: 13px; color: var(--muted); } .sx-mode b { color: var(--text); }\n.sx-btns { display: flex; gap: 8px; flex-wrap: wrap; }\n.sx-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 12px; border: 1px solid transparent;\n  font-weight: 600; font-size: 14px; cursor: pointer; color: #fff; transition: transform .1s, filter .2s; }\n.sx-btn:hover { filter: brightness(1.12); } .sx-btn:active { transform: scale(.97); }\n.sx-b-arm { background: #2563eb; } .sx-b-dis { background: #16a34a; }\n.sx-b-sil { background: transparent; border-color: #f87171; color: #fca5a5; }\n.sx-btn:disabled, .sx-tgl:disabled { opacity: .4; cursor: not-allowed; filter: none; transform: none; }\n.sx-grow { flex: 1; min-width: 0; }\n.sx-tgl { display: inline-flex; align-items: center; gap: 4px; padding: 7px 12px; border-radius: 10px; font-weight: 600; font-size: 13px;\n  cursor: pointer; background: var(--card2); border: 1px solid var(--line); color: var(--text); flex: none; }\n.sx-tgl:hover { border-color: var(--muted); }\n.sx-tgl.on { background: var(--alert); border-color: var(--alert); color: #fff; }\n\n.sx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }\n.sx-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }\n.sx-card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; min-width: 0; }\n.sx-card-head { display: flex; align-items: center; gap: 12px; }\n.sx-ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--card2); }\n.sx-card-title { font-weight: 650; font-size: 15px; }\n.sx-card-sub { color: var(--muted); font-size: 12.5px; }\n.sx-state { display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 700; margin: 16px 0 10px; }\n.sx-sdot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex: none; }\n.sx-card-foot { color: var(--muted); font-size: 13px; margin-top: 8px; }\n.sx-sensor { border-top-width: 3px; }\n.sx-s-ok { border-top-color: var(--ok); } .sx-s-ok .sx-state, .sx-s-ok .sx-ico { color: var(--ok); }\n.sx-s-warn { border-top-color: var(--warn); background: linear-gradient(180deg, rgba(245,158,11,.10), var(--card) 60%); }\n.sx-s-warn .sx-state, .sx-s-warn .sx-ico { color: var(--warn); } .sx-s-warn .sx-sdot { animation: sx-pulse 1s infinite; }\n.sx-s-alert { border-top-color: var(--alert); background: linear-gradient(180deg, rgba(239,68,68,.12), var(--card) 60%); }\n.sx-s-alert .sx-state, .sx-s-alert .sx-ico { color: var(--alert); } .sx-s-alert .sx-sdot { animation: sx-pulse 1s infinite; }\n.sx-s-info { border-top-color: var(--info); } .sx-s-info .sx-state, .sx-s-info .sx-ico { color: var(--info); }\n.sx-s-off { border-top-color: var(--off); } .sx-s-off .sx-state, .sx-s-off .sx-ico { color: var(--off); }\n.sx-bar { position: relative; height: 8px; border-radius: 99px; background: var(--card2); overflow: hidden; }\n.sx-bar-fill { height: 100%; border-radius: 99px; background: currentColor; transition: width .4s; }\n.sx-s-ok .sx-bar, .sx-s-warn .sx-bar { color: inherit; }\n.sx-s-ok .sx-bar-fill { background: var(--ok); } .sx-s-warn .sx-bar-fill { background: var(--warn); }\n.sx-s-off .sx-bar-fill { background: var(--off); }\n.sx-bar-mark { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--muted); }\n\n.sx-card-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }\n.sx-xyz { display: flex; gap: 10px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }\n.sx-xyz span { background: var(--card2); padding: 3px 8px; border-radius: 8px; }\n.sx-chart { width: 100%; height: 160px; display: block; }\n.sx-line { fill: none; stroke: #60a5fa; stroke-width: 2; vector-effect: non-scaling-stroke; }\n.sx-area { fill: rgba(96,165,250,.12); stroke: none; }\n.sx-thr { stroke: var(--warn); stroke-width: 1.5; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; }\n.sx-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; color: var(--muted); font-size: 12.5px; }\n.sx-lg { display: inline-flex; align-items: center; gap: 6px; }\n.sx-lg-line { width: 16px; height: 3px; background: #60a5fa; border-radius: 2px; display: inline-block; }\n.sx-lg-thr { width: 16px; border-top: 2px dashed var(--warn); display: inline-block; }\n\n.sx-link { display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid var(--line); color: var(--muted);\n  border-radius: 10px; padding: 5px 10px; font-size: 13px; cursor: pointer; }\n.sx-link:hover { color: var(--text); }\n.sx-empty { color: var(--muted); font-size: 14px; padding: 24px 0; text-align: center; }\n.sx-feed { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; }\n.sx-feed li { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--line); }\n.sx-feed li:last-child { border-bottom: none; }\n.sx-fico { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex: none; background: var(--card2); color: var(--muted); }\n.sx-e-pir, .sx-e-vib { color: var(--warn); background: rgba(245,158,11,.14); }\n.sx-e-puerta { color: var(--alert); background: rgba(239,68,68,.14); }\n.sx-e-puerta-ok, .sx-e-red, .sx-e-cmd-ok { color: var(--ok); background: rgba(34,197,94,.14); }\n.sx-e-red-off { color: var(--off); }\n.sx-e-alarma, .sx-e-sirena { color: var(--alert); background: rgba(239,68,68,.14); }\n.sx-e-estado, .sx-e-cerradura { color: var(--info); background: rgba(56,189,248,.14); }\n.sx-e-cmd { color: #60a5fa; background: rgba(96,165,250,.14); }\n.sx-ftext { flex: 1; font-size: 14px; }\n.sx-ftime { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }\n.sx-foot { color: var(--muted); font-size: 12px; margin-top: 10px; }\n\n@keyframes sx-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }\n@keyframes sx-glow-r { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,.55); } 50% { box-shadow: 0 0 0 12px rgba(239,68,68,0); } }\n@keyframes sx-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,.45); } 50% { box-shadow: 0 0 0 10px rgba(245,158,11,0); } }\n@media (max-width: 600px) {\n  .sx-title { font-size: 22px; }\n  .sx-hero { padding: 16px; gap: 12px; }\n  .sx-hero-icon { width: 52px; height: 52px; border-radius: 14px; }\n  .sx-hero-title { font-size: 20px; }\n  .sx-actions { align-items: stretch; width: 100%; }\n  .sx-btns { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }\n  .sx-btn { justify-content: center; padding: 10px 6px; font-size: 13px; min-width: 0; }\n  .sx-grid2 { grid-template-columns: minmax(0, 1fr); }\n}\n</style>\n",
+        "storeOutMessages": true,
+        "passthru": false,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 650,
+        "y": 140,
+        "wires": [
+            [
+                "fn_modelo"
+            ]
+        ]
+    },
+    {
+        "id": "out_cmd",
+        "type": "mqtt out",
+        "z": "tab_nodo1",
+        "name": "casa/nodo1/cmd",
+        "topic": "casa/nodo1/cmd",
+        "qos": "1",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "broker1",
+        "x": 660,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "dbg_sensores",
+        "type": "debug",
+        "z": "tab_nodo1",
+        "name": "sensores (apagado)",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 430,
+        "y": 60,
+        "wires": []
+    }
+]

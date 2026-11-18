@@ -1,0 +1,31 @@
+# Este repositorio solo guarda el código y lo necesario para desplegarlo.
+# Los documentos (enunciado, informes, presentaciones, boletas, fotos) se quedan fuera.
+/*
+!/.gitignore
+!/README.md
+!/05_firmware/
+!/06_nodered/
+!/07_datos/
+!/04_compras_y_montaje/
+/04_compras_y_montaje/*
+!/04_compras_y_montaje/conexiones_sistema.png
+!/04_compras_y_montaje/maqueta_puerta_final.png
+
+# Credenciales del Wi-Fi (cada uno crea el suyo desde secrets.example.h)
+secrets.h
+
+# Node-RED: dependencias y archivos que genera solo
+node_modules/
+.config.*.json
+.config.*.json.backup
+.flows.json.backup
+flows_cred.json
+.sessions.json
+lib/
+
+# Python / sistema
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store

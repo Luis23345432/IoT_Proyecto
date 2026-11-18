@@ -1,0 +1,639 @@
+[
+    {
+        "id": "tab_nodo1",
+        "type": "tab",
+        "label": "Nodo 1",
+        "disabled": false,
+        "info": "Tablero del sistema de seguridad. Topics: casa/nodo1/{estado,evento,cmd,lwt}"
+    },
+    {
+        "id": "broker1",
+        "type": "mqtt-broker",
+        "name": "HiveMQ público (pruebas)",
+        "broker": "broker.hivemq.com",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "ui_base1",
+        "type": "ui-base",
+        "name": "Seguridad residencial",
+        "path": "/dashboard",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control"
+        ],
+        "showPathInSidebar": false,
+        "navigationStyle": "default",
+        "titleBarStyle": "default"
+    },
+    {
+        "id": "ui_theme1",
+        "type": "ui-theme",
+        "name": "Tema",
+        "colors": {
+            "surface": "#1d3557",
+            "primary": "#1d3557",
+            "bgPage": "#eef2f6",
+            "groupBg": "#ffffff",
+            "groupOutline": "#d0d7de"
+        },
+        "sizes": {
+            "density": "default",
+            "pagePadding": "12px",
+            "groupGap": "12px",
+            "groupBorderRadius": "6px",
+            "widgetGap": "12px"
+        }
+    },
+    {
+        "id": "ui_page1",
+        "type": "ui-page",
+        "name": "Nodo 1 · puerta principal",
+        "ui": "ui_base1",
+        "path": "/nodo1",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "ui_theme1",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 1,
+        "className": "",
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "g_estado",
+        "type": "ui-group",
+        "name": "Estado del nodo",
+        "page": "ui_page1",
+        "width": "4",
+        "height": "1",
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "g_control",
+        "type": "ui-group",
+        "name": "Control",
+        "page": "ui_page1",
+        "width": "4",
+        "height": "1",
+        "order": 2,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "g_senal",
+        "type": "ui-group",
+        "name": "Señal Wi-Fi",
+        "page": "ui_page1",
+        "width": "4",
+        "height": "1",
+        "order": 3,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "g_eventos",
+        "type": "ui-group",
+        "name": "Últimos mensajes",
+        "page": "ui_page1",
+        "width": "12",
+        "height": "1",
+        "order": 4,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "in_estado",
+        "type": "mqtt in",
+        "z": "tab_nodo1",
+        "name": "casa/nodo1/estado",
+        "topic": "casa/nodo1/estado",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "broker1",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 140,
+        "y": 100,
+        "wires": [
+            [
+                "fn_estado",
+                "dbg_mqtt"
+            ]
+        ]
+    },
+    {
+        "id": "in_lwt",
+        "type": "mqtt in",
+        "z": "tab_nodo1",
+        "name": "casa/nodo1/lwt",
+        "topic": "casa/nodo1/lwt",
+        "qos": "1",
+        "datatype": "utf8",
+        "broker": "broker1",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 130,
+        "y": 240,
+        "wires": [
+            [
+                "fn_lwt",
+                "fn_eventos",
+                "dbg_mqtt"
+            ]
+        ]
+    },
+    {
+        "id": "in_evento",
+        "type": "mqtt in",
+        "z": "tab_nodo1",
+        "name": "casa/nodo1/evento",
+        "topic": "casa/nodo1/evento",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "broker1",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 140,
+        "y": 320,
+        "wires": [
+            [
+                "fn_eventos",
+                "dbg_mqtt"
+            ]
+        ]
+    },
+    {
+        "id": "fn_estado",
+        "type": "function",
+        "z": "tab_nodo1",
+        "name": "separar latido",
+        "func": "const p = msg.payload || {};\nconst hora = new Date().toLocaleTimeString('es-PE');\nreturn [\n    { payload: p.rssi },\n    { payload: p.uptime_s + ' s' },\n    { payload: hora }\n];",
+        "outputs": 3,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 380,
+        "y": 100,
+        "wires": [
+            [
+                "ui_rssi_gauge",
+                "ui_rssi_chart"
+            ],
+            [
+                "ui_uptime"
+            ],
+            [
+                "ui_latido"
+            ]
+        ]
+    },
+    {
+        "id": "fn_lwt",
+        "type": "function",
+        "z": "tab_nodo1",
+        "name": "online / offline",
+        "func": "msg.payload = msg.payload === 'online' ? '🟢 En línea' : '🔴 Fuera de línea';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 380,
+        "y": 240,
+        "wires": [
+            [
+                "ui_conexion"
+            ]
+        ]
+    },
+    {
+        "id": "fn_eventos",
+        "type": "function",
+        "z": "tab_nodo1",
+        "name": "historial (20)",
+        "func": "const lista = flow.get('eventos') || [];\nlista.unshift({\n    hora: new Date().toLocaleTimeString('es-PE'),\n    topic: msg.topic,\n    mensaje: typeof msg.payload === 'string' ? msg.payload : JSON.stringify(msg.payload)\n});\nlista.splice(20);\nflow.set('eventos', lista);\nreturn { payload: lista };",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 390,
+        "y": 320,
+        "wires": [
+            [
+                "ui_tabla"
+            ]
+        ]
+    },
+    {
+        "id": "ui_conexion",
+        "type": "ui-text",
+        "z": "tab_nodo1",
+        "group": "g_estado",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "Conexión",
+        "label": "Conexión",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#717171",
+        "wrapText": false,
+        "className": "",
+        "x": 620,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "ui_uptime",
+        "type": "ui-text",
+        "z": "tab_nodo1",
+        "group": "g_estado",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "name": "Tiempo en línea",
+        "label": "Tiempo en línea",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#717171",
+        "wrapText": false,
+        "className": "",
+        "x": 640,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "ui_latido",
+        "type": "ui-text",
+        "z": "tab_nodo1",
+        "group": "g_estado",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "name": "Último latido",
+        "label": "Último latido",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#717171",
+        "wrapText": false,
+        "className": "",
+        "x": 630,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "ui_rssi_gauge",
+        "type": "ui-gauge",
+        "z": "tab_nodo1",
+        "name": "RSSI",
+        "group": "g_senal",
+        "order": 1,
+        "width": 4,
+        "height": 3,
+        "gtype": "gauge-half",
+        "gstyle": "rounded",
+        "title": "RSSI",
+        "units": "dBm",
+        "icon": "",
+        "prefix": "",
+        "suffix": "",
+        "segments": [
+            {
+                "from": "-100",
+                "color": "#ea5353"
+            },
+            {
+                "from": "-75",
+                "color": "#ffc800"
+            },
+            {
+                "from": "-60",
+                "color": "#5cd65c"
+            }
+        ],
+        "min": "-100",
+        "max": "-20",
+        "sizeThickness": 16,
+        "sizeGap": 4,
+        "sizeKeyThickness": 8,
+        "styleRounded": true,
+        "styleGlow": false,
+        "className": "",
+        "x": 630,
+        "y": 20,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "ui_rssi_chart",
+        "type": "ui-chart",
+        "z": "tab_nodo1",
+        "group": "g_senal",
+        "name": "RSSI en el tiempo",
+        "label": "RSSI en el tiempo (dBm)",
+        "order": 2,
+        "chartType": "line",
+        "category": "RSSI",
+        "categoryType": "str",
+        "xAxisLabel": "",
+        "xAxisProperty": "",
+        "xAxisPropertyType": "timestamp",
+        "xAxisType": "time",
+        "xAxisFormat": "",
+        "xAxisFormatType": "auto",
+        "yAxisLabel": "",
+        "yAxisProperty": "payload",
+        "yAxisPropertyType": "msg",
+        "ymin": "-100",
+        "ymax": "-20",
+        "action": "append",
+        "stackSeries": false,
+        "pointShape": "circle",
+        "pointRadius": 2,
+        "showLegend": false,
+        "removeOlder": "10",
+        "removeOlderUnit": "60",
+        "removeOlderPoints": "",
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "textColor": [
+            "#666666"
+        ],
+        "textColorDefault": true,
+        "gridColor": [
+            "#e5e5e5"
+        ],
+        "gridColorDefault": true,
+        "width": 4,
+        "height": 4,
+        "className": "",
+        "interpolation": "linear",
+        "x": 650,
+        "y": 60,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "btn_armar",
+        "type": "ui-button",
+        "z": "tab_nodo1",
+        "group": "g_control",
+        "name": "Armar",
+        "label": "Armar",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "emulateClick": false,
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "lock",
+        "iconPosition": "left",
+        "payload": "armar",
+        "payloadType": "str",
+        "topic": "casa/nodo1/cmd",
+        "topicType": "str",
+        "buttonColor": "#1d3557",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 120,
+        "y": 440,
+        "wires": [
+            [
+                "out_cmd"
+            ]
+        ]
+    },
+    {
+        "id": "btn_desarmar",
+        "type": "ui-button",
+        "z": "tab_nodo1",
+        "group": "g_control",
+        "name": "Desarmar",
+        "label": "Desarmar",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "emulateClick": false,
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "lock_open",
+        "iconPosition": "left",
+        "payload": "desarmar",
+        "payloadType": "str",
+        "topic": "casa/nodo1/cmd",
+        "topicType": "str",
+        "buttonColor": "#2e7d32",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 130,
+        "y": 480,
+        "wires": [
+            [
+                "out_cmd"
+            ]
+        ]
+    },
+    {
+        "id": "btn_silenciar",
+        "type": "ui-button",
+        "z": "tab_nodo1",
+        "group": "g_control",
+        "name": "Silenciar sirena",
+        "label": "Silenciar sirena",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "emulateClick": false,
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "volume_off",
+        "iconPosition": "left",
+        "payload": "silenciar",
+        "payloadType": "str",
+        "topic": "casa/nodo1/cmd",
+        "topicType": "str",
+        "buttonColor": "#b71c1c",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 150,
+        "y": 520,
+        "wires": [
+            [
+                "out_cmd"
+            ]
+        ]
+    },
+    {
+        "id": "out_cmd",
+        "type": "mqtt out",
+        "z": "tab_nodo1",
+        "name": "casa/nodo1/cmd",
+        "topic": "casa/nodo1/cmd",
+        "qos": "1",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "broker1",
+        "x": 400,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "ui_tabla",
+        "type": "ui-table",
+        "z": "tab_nodo1",
+        "group": "g_eventos",
+        "name": "Historial",
+        "label": "text",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "maxrows": 10,
+        "passthru": false,
+        "autocols": true,
+        "showSearch": false,
+        "deselect": true,
+        "selectionType": "none",
+        "columns": [],
+        "mobileBreakpoint": "sm",
+        "mobileBreakpointType": "defaults",
+        "action": "replace",
+        "className": "",
+        "x": 610,
+        "y": 320,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "dbg_mqtt",
+        "type": "debug",
+        "z": "tab_nodo1",
+        "name": "MQTT recibido",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 400,
+        "y": 180,
+        "wires": []
+    }
+]
